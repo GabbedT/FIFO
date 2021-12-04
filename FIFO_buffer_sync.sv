@@ -89,10 +89,10 @@ module FIFO_buffer_sync #(
 //////////////////
 
   // Write and read address, they are driven by the controller pointers
-  // Assignment in line 171/172
+  // Assignment in line 161/162
   logic [ADDR_BITS - 1:0] wr_addr, rd_addr;
 
-  // Assignment in line 169
+  // Assignment in line 159
   logic write_en;
 
   // Memory block
