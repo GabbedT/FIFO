@@ -35,12 +35,13 @@
 // KEYWORDS : 
 // ------------------------------------------------------------------------------------
 // PARAMETERS
-// PARAM NAME : RANGE : DESCRIPTION                  : DEFAULT 
-// DATA_WIDTH :   /   : I/O number of bits           : 32
-// FIFO_DEPTH :   /   : Total word stored            : 32
+// PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT 
+// DATA_WIDTH :   /   : I/O number of bits          : 32
+// FIFO_DEPTH :   /   : Total word stored           : 32
 // FWFT       : [1:0] : Use FWFT config or standard : 1
+// BYPASS     : [1:0] : Bypass input data to output : 0
 // ------------------------------------------------------------------------------------
-
+ 
 module FIFO_buffer_sync #(
 
   // Number of bits in a word
@@ -53,7 +54,13 @@ module FIFO_buffer_sync #(
   // In FWFT (First Word Fall Through) the head of
   // the FIFO is automatically available in the 
   // read port.
-  parameter FWFT = 0
+  parameter FWFT = 1,
+
+  // When the FIFO is empty instead of waiting the next
+  // clock cycle to retrive the data written (when reading and  
+  // writing at the same time), it can be simply bypassed 
+  // to the output instantly. It increase the critical path timing!
+  parameter BYPASS = 0
 ) 
 (
   input  logic [DATA_WIDTH - 1:0] wr_data_i,
@@ -65,7 +72,9 @@ module FIFO_buffer_sync #(
 
   output logic [DATA_WIDTH - 1:0] rd_data_o,
   output logic                    full_o,
-  output logic                    empty_o
+  output logic                    empty_o,
+
+  output logic [$clog2(FIFO_DEPTH) - 1:0] wr_addr_o, rd_addr_o
 );
 
 ////////////////
@@ -92,8 +101,14 @@ module FIFO_buffer_sync #(
   // Assignment in line 161/162
   logic [ADDR_BITS - 1:0] wr_addr, rd_addr;
 
+  // Fifo status
+  logic [NXT:CRT] full, empty;
+
+  assign wr_addr_o = wr_addr;
+  assign rd_addr_o = rd_addr;
+
   // Assignment in line 159
-  logic write_en;
+  logic write_en, read_en;
 
   // Memory block
   logic [DATA_WIDTH - 1:0] FIFO_memory [FIFO_DEPTH - 1:0];
@@ -114,8 +129,15 @@ module FIFO_buffer_sync #(
               end
           end
 
-        // The read doesn't require any control signal
-        assign rd_data_o = FIFO_memory[rd_addr];
+        // Output logic
+        if (BYPASS)
+          begin 
+            assign rd_data_o = (empty[CRT] & read_i & write_i) ? wr_data_i : FIFO_memory[rd_addr];
+          end
+        else 
+          begin 
+            assign rd_data_o = FIFO_memory[rd_addr];
+          end 
       end : FWFT_CONFIGURATION
     else
       begin : STANDARD_CONFIGURATION
@@ -127,16 +149,31 @@ module FIFO_buffer_sync #(
                 // Write a word in memory
                 FIFO_memory[wr_addr] <= wr_data_i; 
               end
-            else if (clk_en_i & read_i)
+            else if (clk_en_i & read_en)
               begin 
                 // Read a word at the positive edge of clock
-                rd_data_o <= FIFO_memory[rd_addr];
+                if (BYPASS)
+                  begin 
+                    rd_data_o <= (empty[CRT] & read_i & write_i) ? wr_data_i : FIFO_memory[rd_addr];
+                  end
+                else 
+                  begin 
+                    rd_data_o <= FIFO_memory[rd_addr];
+                  end
               end
-            else if (clk_en_i & write_en & read_i)
+            else if (clk_en_i & write_en & read_en)
               begin 
                 // Both write and read
                 FIFO_memory[wr_addr] <= wr_data_i; 
-                rd_data_o <= FIFO_memory[rd_addr];
+
+                if (BYPASS)
+                  begin 
+                    rd_data_o <= (empty[CRT] & read_i & write_i) ? wr_data_i : FIFO_memory[rd_addr];
+                  end
+                else 
+                  begin 
+                    rd_data_o <= FIFO_memory[rd_addr];
+                  end
               end
           end
       end : STANDARD_CONFIGURATION
@@ -152,14 +189,14 @@ module FIFO_buffer_sync #(
   // Incremented pointer
   logic [ADDR_BITS - 1:0] write_ptr_inc, read_ptr_inc;
 
-  // Fifo status
-  logic [NXT:CRT] full, empty;
-
-  // Enable the write only the fifo is not full
+  // Enable the write only when the fifo is not full
   assign write_en = write_i & !full[CRT];
 
   assign wr_addr = write_ptr[CRT];
   assign rd_addr = read_ptr[CRT];
+
+  // Enable the read only when the fifo is not empty
+  assign read_en = read_i & !empty[CRT];
 
       always_ff @(posedge clk_i) 
         begin : STATUS_REGISTER
@@ -168,7 +205,7 @@ module FIFO_buffer_sync #(
               write_ptr[CRT] <= 'b0;
               read_ptr[CRT] <= 'b0;
               full[CRT] <= 1'b0;
-              empty[CRT] <= 1'b0;
+              empty[CRT] <= 1'b1;
             end
           else if (clk_en_i)
             begin 
@@ -179,11 +216,11 @@ module FIFO_buffer_sync #(
             end
         end : STATUS_REGISTER
 
+  assign write_ptr_inc = write_ptr[CRT] + 1;
+  assign read_ptr_inc = read_ptr[CRT] + 1;
+
       always_comb 
         begin : NEXT_STATE_LOGIC
-          write_ptr_inc = write_ptr[CRT] + 1;
-          read_ptr_inc = read_ptr[CRT] + 1;
-
           case ({write_i, read_i})
             READ: 
               begin 
