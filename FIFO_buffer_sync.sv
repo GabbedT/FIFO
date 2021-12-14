@@ -98,7 +98,7 @@ module FIFO_buffer_sync #(
 //////////////////
 
   // Write and read address, they are driven by the controller pointers
-  // Assignment in line 161/162
+  // Assignment in line 197/198
   logic [ADDR_BITS - 1:0] wr_addr, rd_addr;
 
   // Fifo status
@@ -107,7 +107,7 @@ module FIFO_buffer_sync #(
   assign wr_addr_o = wr_addr;
   assign rd_addr_o = rd_addr;
 
-  // Assignment in line 159
+  // Assignment in line 193/195
   logic write_en, read_en;
 
   // Memory block
@@ -191,12 +191,11 @@ module FIFO_buffer_sync #(
 
   // Enable the write only when the fifo is not full
   assign write_en = write_i & !full[CRT];
+  // Enable the read only when the fifo is not empty
+  assign read_en = read_i & !empty[CRT];
 
   assign wr_addr = write_ptr[CRT];
   assign rd_addr = read_ptr[CRT];
-
-  // Enable the read only when the fifo is not empty
-  assign read_en = read_i & !empty[CRT];
 
       always_ff @(posedge clk_i) 
         begin : STATUS_REGISTER
