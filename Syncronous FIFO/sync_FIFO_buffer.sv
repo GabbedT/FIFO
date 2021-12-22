@@ -60,9 +60,9 @@ module sync_FIFO_buffer #(
   // the FIFO is available in the read port as soon
   // as the "read_i" signal is asserted 
   parameter FWFT = 1
-) 
-( // Nets declared in interface
-  sync_fifo_interface fifo_if
+)  
+ (// Nets declared in interface (add #(DATA_WIDTH))  
+  sync_fifo_interface.DEVICE fifo_if
 );
 
 ////////////////
