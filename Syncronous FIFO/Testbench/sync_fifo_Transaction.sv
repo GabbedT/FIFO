@@ -42,7 +42,7 @@
 `ifndef TRANSACTION_SV
   `define TRANSACTION_SV
   
-class sync_fifo_Trx #(parameter DATA_WIDTH = 32);
+class sync_fifo_Trx #(int DATA_WIDTH = 32);
   // Inputs
   rand  bit [DATA_WIDTH - 1:0] wr_data_i;
   rand  bit                    read_i;
@@ -54,10 +54,14 @@ class sync_fifo_Trx #(parameter DATA_WIDTH = 32);
   bit                          empty_o;
 
   // Don't read if fifo is empty 
-  constraint read_c { (empty_o) -> read_i == 0; }
+  constraint read_c { 
+    (empty_o) -> read_i == 0; 
+  };
 
   // Don't write if fifo is full
-  constraint write_c { (full_o) -> write_i == 0; }
+  constraint write_c { 
+    (full_o) -> write_i == 0; 
+  };
 
   function new();
     wr_data_i = 0;
@@ -65,9 +69,9 @@ class sync_fifo_Trx #(parameter DATA_WIDTH = 32);
     write_i = 0;
     rd_data_o = 0;
     full_o = 0;
-    empty_o = 0;
-  endfunction
-  
-endclass
+    empty_o = 1;
+  endfunction : new
+
+endclass : sync_fifo_Trx
 
 `endif
