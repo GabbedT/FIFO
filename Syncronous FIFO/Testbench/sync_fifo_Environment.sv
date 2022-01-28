@@ -87,7 +87,7 @@ class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT
     drv = new(fifo_vif, gen2drv_mbx, drvDone_ev);
     mon = new(fifo_vif, mon2scb_mbx, mon2gen_mbx);
     scb = new(mon2scb_mbx);
-  endfunction
+  endfunction : new
 
 ////////////
 //  MAIN  //
@@ -107,8 +107,8 @@ class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT
       
     $display("[Testbench] Finished, %0d transactions, %0d errors", gen.countTrx, scb.errorCount);
     $finish;
-  endtask
+  endtask : main
 
-endclass  
+endclass : sync_fifo_Environment 
 
-`endif   
+`endif  
