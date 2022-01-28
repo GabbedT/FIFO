@@ -126,6 +126,6 @@ class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 0);
     $display("[Monitor] [%0tns] Finish", $time);
   endtask : main
 
-endclass 
+endclass : sync_fifo_Monitor
   
 `endif
