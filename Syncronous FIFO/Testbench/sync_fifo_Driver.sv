@@ -72,7 +72,7 @@ class sync_fifo_Driver #(parameter DATA_WIDTH = 32, parameter FWFT = 0);
       this.gen2drv = gen2drv;
       this.drvDone_ev = drvDone_ev;
     end     
-  endfunction
+  endfunction : new
 
   // Reset fifo task
   task reset();
@@ -85,7 +85,7 @@ class sync_fifo_Driver #(parameter DATA_WIDTH = 32, parameter FWFT = 0);
       
     wait(fifo_vif.driver_ckb.rst_n_i);
     $display("[Driver] Reset completed! \n");
-  endtask
+  endtask : reset
 
   // Drive transaction
   task main();
@@ -123,11 +123,11 @@ class sync_fifo_Driver #(parameter DATA_WIDTH = 32, parameter FWFT = 0);
       // Wait the transaction to be elaborated
       @(posedge fifo_vif.clk_i);
       -> drvDone_ev;  
-    end
+    end 
 
     $display("[Driver] [%0tns] Finish!", $time);
-  endtask
+  endtask : main
 
-endclass 
+endclass : sync_fifo_Driver
 
 `endif 
