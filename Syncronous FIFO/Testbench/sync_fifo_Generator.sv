@@ -77,7 +77,7 @@ class sync_fifo_Generator #(int DATA_WIDTH = 32);
       this.drvDone_ev = drvDone_ev;
       this.mon2gen_mbx = mon2gen_mbx;
     end
-  endfunction
+  endfunction : new
 
 ////////////
 //  MAIN  //
@@ -103,8 +103,8 @@ class sync_fifo_Generator #(int DATA_WIDTH = 32);
     end
 
     $display("[Generator] [%0tns] Finish! Generated %0d transaction", $time, countTrx);
-  endtask 
+  endtask : main
 
-endclass 
+endclass : sync_fifo_Generator
 
 `endif
