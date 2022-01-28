@@ -61,22 +61,17 @@ class sync_fifo_Driver #(parameter DATA_WIDTH = 32, parameter FWFT = 0);
 
   // Connect interface and mailbox
   function new(input virtual sync_fifo_interface fifo_vif, input mailbox gen2drv, input event drvDone_ev);
-    if (this.DATA_WIDTH != fifo_vif.DATA_WIDTH)
-      begin 
-        $display("[Driver] Error: interfaces parameters mismatch!");
-        $finish;
-      end
-    else if (gen2drv == null)
-      begin 
-        $display("[Driver] Error: mailbox generator -> driver not connected!");
-        $finish; 
-      end
-    else 
-      begin 
-        this.fifo_vif = fifo_vif;
-        this.gen2drv = gen2drv;
-        this.drvDone_ev = drvDone_ev;
-      end     
+    if (this.DATA_WIDTH != fifo_vif.DATA_WIDTH) begin 
+      $display("[Driver] Error: interfaces parameters mismatch!");
+      $finish;
+    end else if (gen2drv == null) begin 
+      $display("[Driver] Error: mailbox generator -> driver not connected!");
+      $finish; 
+    end else begin 
+      this.fifo_vif = fifo_vif;
+      this.gen2drv = gen2drv;
+      this.drvDone_ev = drvDone_ev;
+    end     
   endfunction
 
   // Reset fifo task
