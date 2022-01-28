@@ -46,15 +46,14 @@
 
 `include "sync_fifo_Transaction.sv"
 
-class sync_fifo_Scoreboard #(parameter DATA_WIDTH = 32, parameter FIFO_DEPTH = 32);
+class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32);
 
   mailbox mon2scb_mbx;
-  int trxCount = 0;
   int errorCount = 0;
 
-  bit [DATA_WIDTH - 1:0] fifo_ref [FIFO_DEPTH];
-  bit [$clog2(FIFO_DEPTH) - 1:0] wr_ptr = 0;
-  bit [$clog2(FIFO_DEPTH) - 1:0] rd_ptr = 0;
+  // Fifo reference
+  bit [DATA_WIDTH - 1:0] fifo_ref [$:FIFO_DEPTH];
+  bit [DATA_WIDTH - 1:0] data_read;
 
   sync_fifo_Trx #(DATA_WIDTH) pkt;
 
@@ -63,96 +62,85 @@ class sync_fifo_Scoreboard #(parameter DATA_WIDTH = 32, parameter FIFO_DEPTH = 3
 /////////////////
 
   function new(input mailbox mon2scb_mbx);
-    if (mon2scb_mbx == null)
-      begin 
-        $display("[Scoreboard] Error: mailbox scoreboard -> monitor not connected!");
-        $finish;
-      end
-    else
-      begin 
-        this.mon2scb_mbx = mon2scb_mbx;
-          
-        // Initialize fifo reference
-        foreach(fifo_ref[i]) begin 
-          fifo_ref[i] = 'b0;
-        end
-      end
-  endfunction 
+    if (mon2scb_mbx == null) begin 
+      $display("[Scoreboard] Error: mailbox scoreboard -> monitor not connected!");
+      $finish;
+    end else begin 
+      this.mon2scb_mbx = mon2scb_mbx;
 
-/////////////
-//  TASKS  //
-/////////////
-
-  // Read fifo
-  task fifoPop();
-    // Assert that the design behave like the golden model
-    assert (this.pkt.rd_data_o == this.fifo_ref[rd_ptr]) 
-    else begin 
-      errorCount++;
-      $display("[Scoreboard] Error on data read!");
-      $display("[Scoreboard] Expected: 0x%0h", this.fifo_ref[rd_ptr]);
-      $display("[Scoreboard] DUT: 0x%0h", this.pkt.rd_data_o);
+      // Initialize the queue
+      for (int i = 0; i < FIFO_DEPTH; i++) begin 
+        fifo_ref.insert(i, 0);
+      end
     end
-    // Increment the read pointer
-    this.rd_ptr++;
-  endtask
-
-  // Write fifo
-  task fifoPush();
-    // Write into the golden model
-    this.fifo_ref[wr_ptr] = this.pkt.wr_data_i;
-    // Increment the write pointer
-    this.wr_ptr++;
-  endtask
+  endfunction : new
 
 ////////////
 //  MAIN  //
 ////////////
 
   task main();
-    $display("[Scoreboard] Starting...");
+    $display("[Scoreboard] [%0tns] Starting...", $time);
     pkt = new();
       
-    forever begin 
-      // Get the transaction from the scoreboard
+    forever begin
+      // Get the complete transaction from the monitor 
       mon2scb_mbx.get(pkt);
 
-      // Golden model
-      if (pkt.write_i && pkt.read_i)
-        begin 
-          $display("[Scoreboard] Reading and Writing...");
-          // Read and write the memory 
-          fifoPush();
-          fifoPush();
+      // Check the empty/full logic before writing/reading the fifo
+      // since it would compromise the size of the fifo reference
+      if (pkt.empty_o) begin 
+        assert(fifo_ref.size() == 0)  
+          $display("[Scoreboard] [%0tns] PASS! FIFO is empty", $time);
+        else begin 
+          $display("[Scoreboard] [%0tns] FAIL! Reference size: %0d, DUT: %0s", $time, fifo_ref.size(), pkt.empty_o ? "EMPTY" : "NOT EMPTY");
+          errorCount++;
         end
-      else if (pkt.write_i)
-        begin 
-          $display("[Scoreboard] Writing...");
-          // Write into the memory 
-          fifoPush();
+      end else if (pkt.full_o) begin 
+        assert(fifo_ref.size() == FIFO_DEPTH)  
+          $display("[Scoreboard] [%0tns] PASS! FIFO is full", $time);
+        else begin 
+          $display("[Scoreboard] [%0tns] FAIL! Reference size: %0d, DUT: %0s", $time, fifo_ref.size(), pkt.full_o ? "FULL" : "NOT FULL");
+          errorCount++;
         end
-      else if (pkt.read_i)
-        begin 
-          $display("[Scoreboard] Reading...");
-          // Read the memory and increment the pointer
-          fifoPush();
+      end
+
+      if (pkt.write_i & pkt.read_i) begin  
+        $display("[Scoreboard] [%0tns] Writing and reading...", $time);
+        fifo_ref.push_front(pkt.wr_data_i);
+        data_read = fifo_ref.pop_back();
+
+        assert(data_read == pkt.rd_data_o)  
+          $display("[Scoreboard] [%0tns] PASS! Read match", $time);
+        else begin 
+          $display("[Scoreboard] [%0tns] FAIL! Read mismatch", $time);
+          $display("[Scoreboard] Expected: %0h", data_read);
+          $display("[Scoreboard] DUT: %0h", pkt.rd_data_o);
+          errorCount++;
         end
-      else 
-        begin 
-          $display("[Scoreboard] Idle...");
+      end else if (pkt.write_i) begin 
+        $display("[Scoreboard] [%0tns] Writing...", $time);
+        fifo_ref.push_front(pkt.wr_data_i);
+      end else if (pkt.read_i) begin 
+        $display("[Scoreboard] [%0tns] Reading...", $time);
+        data_read = fifo_ref.pop_back();
+
+        assert(data_read == pkt.rd_data_o)  
+          $display("[Scoreboard] [%0tns] PASS! Read match", $time);
+        else begin 
+          $display("[Scoreboard] [%0tns] FAIL! Read mismatch", $time);
+          $display("[Scoreboard] Expected: %0h", data_read);
+          $display("[Scoreboard] DUT: %0h", pkt.rd_data_o);
+          errorCount++;
         end
-        
-      if (pkt.full_o)
-        $display("[Scoreboard] FIFO is full!");
-      if (pkt.empty_o)
-        $display("[Scoreboard] FIFO is empty");
+      end else begin 
+        $display("[Scoreboard] [%0tns] Idle...", $time);
+      end
 
       $display("\n");
-
-      trxCount++;
     end
-  endtask  
+  endtask : main 
 
-endclass   
+endclass : sync_fifo_Scoreboard 
 
 `endif
