@@ -44,7 +44,7 @@
 
 `include "sync_fifo_Transaction.sv"
 
-class sync_fifo_Driver #(parameter DATA_WIDTH = 32);
+class sync_fifo_Driver #(parameter DATA_WIDTH = 32, parameter FWFT = 0);
 
   virtual sync_fifo_interface.DRIVER fifo_vif;
 
@@ -52,6 +52,7 @@ class sync_fifo_Driver #(parameter DATA_WIDTH = 32);
   mailbox gen2drv;
 
   event drvDone_ev;
+  event monDone_ev;
 
   // Transaction driven
   int trxCount = 0;
@@ -83,58 +84,53 @@ class sync_fifo_Driver #(parameter DATA_WIDTH = 32);
     $display("[Driver] Resetting fifo...");
     fifo_vif.driver_ckb.rst_n_i <= 1'b0;
 
-    // Wait 1 clock cycle then deassert reset signal
-    @(posedge fifo_vif.clk_i);
+    // Wait then deassert reset signal
+    repeat (2) @(posedge fifo_vif.clk_i);
     fifo_vif.driver_ckb.rst_n_i <= 1'b1;
       
+    wait(fifo_vif.driver_ckb.rst_n_i);
     $display("[Driver] Reset completed! \n");
   endtask
 
   // Drive transaction
   task main();
-    $display("[Driver] Starting...");
+    $display("[Driver] [%0tns] Starting...", $time);
+    @(posedge fifo_vif.clk_i);
     pkt = new(); 
       
     forever begin 
-      $display("[Driver] Waiting transaction...");
+      $display("[Driver] [%0tns] Waiting transaction...", $time);
 
-      // Recive the transaction from the generator
+      // Recieve the transaction from the generator
       gen2drv.get(pkt);
-      $display("[Driver] Transaction acquired!");
-      $display("[Driver] Transaction number %0d", ++trxCount);
+      $display("[Driver] [%0tns] Transaction acquired!", $time);
+      $display("[Driver] [%0tns] Transaction number %0d", $time, ++trxCount);
 
       // Pass the transaction to the DUT
       fifo_vif.driver_ckb.write_i <= pkt.write_i;
       fifo_vif.driver_ckb.read_i <= pkt.read_i;
       fifo_vif.driver_ckb.wr_data_i <= pkt.wr_data_i;
 
-      if (pkt.read_i && pkt.write_i)
-        begin 
-          // Write and read simultaneously
-          $display("[Driver] Writing data...");
-          $display("[Driver] Reading data..."); 
-        end
-      else if (pkt.write_i)
-        begin 
-          // Write data into fifo
-          $display("[Driver] Writing data...");
-        end
-      else if (pkt.read_i)
-        begin 
-          // Retrive data from fifo
-          $display("[Driver] Reading data..."); 
-        end
-      else 
-        begin 
-          $display("[Driver] No operation!");
-        end
+      if (pkt.read_i && pkt.write_i) begin 
+        // Write and read simultaneously
+        $display("[Driver] [%0tns] Writing data...", $time);
+        $display("[Driver] [%0tns] Reading data...", $time);
+      end else if (pkt.write_i) begin 
+        // Write data into fifo
+        $display("[Driver] [%0tns] Writing data...", $time);
+      end else if (pkt.read_i) begin 
+        // Retrive data from fifo
+        $display("[Driver] [%0tns] Reading data...", $time);  
+      end else begin 
+        $display("[Driver] [%0tns] No operation!", $time);
+      end
 
       // Wait the transaction to be elaborated
       @(posedge fifo_vif.clk_i);
       -> drvDone_ev;  
     end
 
-    $display("[Driver] Finish!");
+    $display("[Driver] [%0tns] Finish!", $time);
   endtask
 
 endclass 
