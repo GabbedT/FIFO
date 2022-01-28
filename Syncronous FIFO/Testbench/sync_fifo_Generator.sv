@@ -45,13 +45,17 @@
 
 `include "sync_fifo_Transaction.sv"
 
-class sync_fifo_Generator #(parameter DATA_WIDTH = 32);
+class sync_fifo_Generator #(int DATA_WIDTH = 32);
 
   // Transaction
   rand sync_fifo_Trx #(DATA_WIDTH) pkt;
 
   // Pass the random transaction to the driver
   mailbox gen2drv_mbx;
+
+  // The monitor send the outputs to the generator
+  // so it can generate proper constrained transactions
+  mailbox mon2gen_mbx;
 
   // Number of transaction generated 
   int totalTestGenerated;
@@ -64,17 +68,15 @@ class sync_fifo_Generator #(parameter DATA_WIDTH = 32);
 // CONSTRUCTOR //
 /////////////////
 
-  function new(input mailbox gen2drv_mbx, input event drvDone_ev);
-    if (gen2drv_mbx == null)
-      begin 
-        $display("[Generator] Error: mailbox generator -> driver not connected!");
-        $finish;
-      end
-    else 
-      begin
-        this.gen2drv_mbx = gen2drv_mbx;
-        this.drvDone_ev = drvDone_ev;
-      end
+  function new(input mailbox gen2drv_mbx, input event drvDone_ev, input mailbox mon2gen_mbx);
+    if (gen2drv_mbx == null) begin 
+      $display("[Generator] Error: mailbox generator -> driver not connected!");
+      $finish;
+    end else  begin
+      this.gen2drv_mbx = gen2drv_mbx;
+      this.drvDone_ev = drvDone_ev;
+      this.mon2gen_mbx = mon2gen_mbx;
+    end
   endfunction
 
 ////////////
@@ -82,21 +84,25 @@ class sync_fifo_Generator #(parameter DATA_WIDTH = 32);
 ////////////
 
   task main();
-    $display("[Generator] Starting...");
+    $display("[Generator] [%0tns] Starting...", $time);
     pkt = new();
 
     repeat(totalTestGenerated) begin 
       // Initialize transaction
       if (!pkt.randomize())
         $display("[Generator] Packet failed to randomize!");
-
+      else
+        $display("[Generator] [%0tns] Generated a new transaction: %0d", $time, ++countTrx);
+      
       // Send the packet to the driver then wait the driver
       gen2drv_mbx.put(pkt);
-      countTrx++;
       @(drvDone_ev);
+
+      // Receive the outputs of the previous transaction from the monitor
+      mon2gen_mbx.get(pkt);
     end
 
-    $display("[Generator] Finish! Generated %0d transaction", countTrx);
+    $display("[Generator] [%0tns] Finish! Generated %0d transaction", $time, countTrx);
   endtask 
 
 endclass 
