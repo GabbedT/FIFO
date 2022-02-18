@@ -26,3 +26,12 @@ The former is the storage of the data, the latter control the various read and w
 | Output | rd_data_o | Data read port       | 
 | Output | full_o    | Fifo full signal     | 
 | Output | empty_o   | Fifo empty signal    | 
+
+### First Word Fall Through configuration 
+
+In this configuration reading the memory is combinatorial, that means that the data read will appear to the output port `rd_data_o` as soon as `read_i` is asserted.
+
+### Standard configuration
+
+In this configuration reading the memory is syncronous, that means that the data read will appear to the output port `rd_data_o` the clock cycle after `read_i` is asserted. 
+
