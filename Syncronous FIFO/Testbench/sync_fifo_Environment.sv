@@ -37,10 +37,14 @@
 //               sync_fifo_Monitor.sv, sync_fifo_Scoreboard.sv
 // ------------------------------------------------------------------------------------
 // PARAMETERS
-// PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT
-// DATA_WIDTH :   /   : I/O number of bits          : 32
-// FIFO_DEPTH :   /   : Total word stored           : 32
-// FWFT       : [1:0] : Use FWFT config or standard : 1
+//
+// PARAM NAME : RANGE : DESCRIPTION                  : DEFAULT VALUES
+// ------------------------------------------------------------------------------------
+// DATA_WIDTH  :   /   : I/O number of bits          : 32
+// FIFO_DEPTH  :   /   : Total word stored           : 32
+// FWFT        : [1:0] : Use FWFT config or standard : 1
+// TEST_NUMBER :   /   : Number of test performed    : 500
+// DEBUG       : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
 `ifndef ENVIRONMENT_SV   
@@ -52,24 +56,25 @@
 `include "sync_fifo_Monitor.sv"
 `include "sync_fifo_Scoreboard.sv"
 
-class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT = 0);
+class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT = 1, int TEST_NUMBER = 500, int DEBUG = 1);
 
-  sync_fifo_Generator #(DATA_WIDTH) gen;
-  sync_fifo_Driver #(DATA_WIDTH, FWFT) drv;
-  sync_fifo_Monitor #(DATA_WIDTH, FWFT) mon;
-  sync_fifo_Scoreboard #(DATA_WIDTH, FIFO_DEPTH) scb;
+  sync_fifo_Generator #(DATA_WIDTH, DEBUG) gen;
+  sync_fifo_Driver #(DATA_WIDTH, FWFT, DEBUG) drv;
+  sync_fifo_Monitor #(DATA_WIDTH, FWFT, DEBUG) mon;
+  sync_fifo_Scoreboard #(DATA_WIDTH, FIFO_DEPTH, FWFT, DEBUG) scb;
 
   mailbox gen2drv_mbx;
   mailbox mon2scb_mbx;
   mailbox mon2gen_mbx;
+  mailbox drv2scb_mbx;
     
   event drvDone_ev;
 
   virtual sync_fifo_interface #(DATA_WIDTH) fifo_vif;
 
-/////////////////
+//-------------//
 // CONSTRUCTOR //
-/////////////////
+//-------------//
 
   function new(input virtual sync_fifo_interface fifo_vif);
     if (this.DATA_WIDTH != fifo_vif.DATA_WIDTH) begin 
@@ -82,20 +87,19 @@ class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT
     gen2drv_mbx = new();
     mon2scb_mbx = new();
     mon2gen_mbx = new();
+    drv2scb_mbx = new();
 
-    gen = new(gen2drv_mbx, drvDone_ev, mon2gen_mbx);
-    drv = new(fifo_vif, gen2drv_mbx, drvDone_ev);
-    mon = new(fifo_vif, mon2scb_mbx, mon2gen_mbx);
-    scb = new(mon2scb_mbx);
+    gen = new(gen2drv_mbx, mon2gen_mbx, TEST_NUMBER);
+    drv = new(fifo_vif, gen2drv_mbx, drvDone_ev, drv2scb_mbx);
+    mon = new(fifo_vif, mon2scb_mbx, mon2gen_mbx, drvDone_ev);
+    scb = new(mon2scb_mbx, drv2scb_mbx);
   endfunction : new
 
-////////////
+//--------//
 //  MAIN  //
-////////////
+//--------//
 
   task main();
-    // Reset the module
-    drv.reset();
 
     // Run test
     fork
@@ -105,7 +109,14 @@ class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT
       scb.main();
     join_any
       
-    $display("[Testbench] Finished, %0d transactions, %0d errors", gen.countTrx, scb.errorCount);
+    $display("[Testbench] Finished, %0d transactions, %0d errors", gen.pkt.trx_count, scb.total_errors);
+
+    if (DEBUG) begin
+      foreach (scb.error_time[i]) begin
+        $display("Error %0d at time: %0dns", i, scb.error_time[i]);
+      end
+    end
+
     $finish;
   endtask : main
 
