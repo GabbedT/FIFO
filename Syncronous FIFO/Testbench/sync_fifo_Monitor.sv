@@ -36,9 +36,12 @@
 // DEPENDENCIES: sync_fifo_Transaction.sv, sync_fifo_interface.sv
 // ------------------------------------------------------------------------------------
 // PARAMETERS
+//
 // PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT
+// ------------------------------------------------------------------------------------
 // DATA_WIDTH :   /   : I/O number of bits          : 32
 // FWFT       : [1:0] : Use FWFT config or standard : 1
+// DEBUG      : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
 `ifndef MONITOR_SV
@@ -47,22 +50,22 @@
 `include "sync_fifo_Transaction.sv"
 `include "sync_fifo_interface.sv" 
 
-class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 0);
+class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 1, int DEBUG = 1);
 
-  virtual sync_fifo_interface.MONITOR fifo_vif;
-
-  // Connect the monitor to the scoreboard
+  virtual sync_fifo_interface fifo_vif;
+  
   mailbox mon2scb_mbx;
-  // Connect the monitor to the generator
   mailbox mon2gen_mbx;
+
+  event drvDone_ev;
 
   sync_fifo_Trx #(DATA_WIDTH) pkt;
 
-/////////////////
+//-------------//
 // CONSTRUCTOR //
-/////////////////
+//-------------//
 
-  function new(input virtual sync_fifo_interface fifo_vif, input mailbox mon2scb_mbx, input mailbox mon2gen_mbx);
+  function new(input virtual sync_fifo_interface fifo_vif, input mailbox mon2scb_mbx, input mailbox mon2gen_mbx, input event drvDone_ev);
     // Didn't connect
     if (mon2scb_mbx == null) begin 
       $display("[Monitor] Error: mailbox monitor -> scoreboard not connected!");
@@ -74,56 +77,71 @@ class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 0);
       this.mon2scb_mbx = mon2scb_mbx;
       this.fifo_vif = fifo_vif;
       this.mon2gen_mbx = mon2gen_mbx;
+      this.drvDone_ev = drvDone_ev;
+
+      pkt = new(0);
     end
   endfunction : new
 
-/////////////
+//---------//
 //  TASKS  //
-/////////////
+//---------//
 
-  task printInputs(input sync_fifo_Trx pkt);
-    $display("[Monitor] [%0tns] Sampled inputs!", $time);
-    $display("[Monitor] [%0tns] Write Data = 0x%0h   Read = %0b   Write = %0b", $time, pkt.wr_data_i, pkt.read_i, pkt.write_i);
-  endtask : printInputs
+  function printInputsMon();
+    $display("[Monitor] [%0dns] Sampled inputs!", $time);
+    pkt.printInputs("Monitor");
+  endfunction : printInputsMon
 
-  task printOutputs(input sync_fifo_Trx pkt);
-    $display("[Monitor] [%0tns] Sampled outputs!", $time);
-    $display("[Monitor] [%0tns] Read Data = 0x%0h   Empty = %0b   Full = %0b", $time, pkt.rd_data_o, pkt.empty_o, pkt.full_o);
-  endtask : printOutputs
+  function printOutputsMon();
+    $display("[Monitor] [%0dns] Sampled outputs!", $time);
 
-////////////
+    if (FWFT) begin
+      pkt.printOutputs("Monitor");
+    end else begin 
+      $display("[Monitor] [%0dns] Previous read data = 0x%h Empty = %0b Full = %0b", $time, pkt.rd_data_o, pkt.empty_o, pkt.full_o);
+    end
+  endfunction : printOutputsMon
+
+//--------//
 //  MAIN  //
-////////////
+//--------//
 
   task main();
-    $display("[Monitor] [%0tns] Starting...", $time);  
-    pkt = new();
+    $display("[Monitor] [%0dns] Starting...", $time); 
+    
+    forever begin
+      // Wait for the driver to finish driving transaction
+      $display("[Monitor] [%0dns] Waiting the driver...", $time);
+      wait(drvDone_ev.triggered);
       
-    forever begin 
-      @(posedge fifo_vif.clk_i);
-       
       // Get inputs
-      pkt.write_i <= fifo_vif.monitor_ckb.write_i;
-      pkt.read_i <= fifo_vif.monitor_ckb.read_i;
-      pkt.wr_data_i <= fifo_vif.monitor_ckb.wr_data_i;    
-      printInputs(pkt);
+      pkt.write_i = fifo_vif.write_i;
+      pkt.read_i = fifo_vif.read_i;
+      pkt.wr_data_i = fifo_vif.wr_data_i; 
+
+      if (DEBUG) begin
+        $display("[Monitor] [%0dns] Interface inputs: ", $time);   
+        printInputsMon();
+      end
 
       // Get outputs
-      pkt.empty_o <= fifo_vif.monitor_ckb.empty_o;
-      pkt.full_o <= fifo_vif.monitor_ckb.full_o;
+      pkt.empty_o = fifo_vif.empty_o;
+      pkt.full_o = fifo_vif.full_o;
+      pkt.rd_data_o = fifo_vif.rd_data_o;
 
-      if (FWFT == 0)
-        @(posedge fifo_vif.clk_i);
+      if (DEBUG) begin
+        $display("[Monitor] [%0dns] Interface outputs: ", $time);   
+        printOutputsMon();
+      end
 
-      pkt.rd_data_o <= fifo_vif.monitor_ckb.rd_data_o;
-      printOutputs(pkt);
+      $display("[Monitor] [%0dns] Packet filled, sending to scoreboard and generator");
 
       // Send to the scoreboard and the generator
       mon2scb_mbx.put(pkt);
       mon2gen_mbx.put(pkt);
-    end
 
-    $display("[Monitor] [%0tns] Finish", $time);
+      @(posedge fifo_vif.clk_i);
+    end
   endtask : main
 
 endclass : sync_fifo_Monitor
