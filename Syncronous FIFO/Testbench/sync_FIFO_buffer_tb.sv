@@ -28,34 +28,56 @@
 // ------------------------------------------------------------------------------------
 // RELEASE HISTORY
 // VERSION : 1.0 
-// DESCRIPTION : Top level testbench module where the test and the DUT are instantiated 
+// DESCRIPTION : Top level testbench module where the test and the DUT are instantiated. 
+//               This module control all the parameters of the testbench, if you need
+//               to modify a parameter, do it exclusively here!
 // ------------------------------------------------------------------------------------
 // KEYWORDS : 
 // ------------------------------------------------------------------------------------
 // DEPENDENCIES: sync_fifo_interface.sv, sync_fifo_Test.sv
 // ------------------------------------------------------------------------------------
 // PARAMETERS
+//
+// PARAM NAME  : RANGE : DESCRIPTION                 : DEFAULT VALUE
+// ------------------------------------------------------------------------------------
+// DATA_WIDTH  :   /   : I/O number of bits          : 32
+// FIFO_DEPTH  :   /   : Total word stored           : 32
+// FWFT        : [1:0] : Use FWFT config or standard : 1
+// TEST_NUMBER :   /   : Number of test performed    : 500
+// DEBUG       : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
 `timescale 1ns/1ps
 `include "sync_fifo_Test.sv"
 `include "sync_fifo_interface.sv"
-
+      
 module sync_FIFO_buffer_tb ();
   
-  localparam DATA_WIDTH = 32;
-  localparam FIFO_DEPTH = 32;
-  localparam FWFT = 0;
+//---------------//
+// DUT PARAMETER //
+//---------------//
+
+  localparam int DATA_WIDTH = 32;
+  localparam int FIFO_DEPTH = 32;
+  localparam int FWFT = 1;
+  localparam int TEST_NUMBER = 500;
+  localparam int DEBUG = 1;
   
-  // Clock generation
+//------------------//
+// CLOCK GENERATION //
+//------------------//
+
   bit clk_i;
   always #5 clk_i = !clk_i;
 
   sync_fifo_interface #(DATA_WIDTH) fifo_if(clk_i);
 
-  sync_fifo_Test t1(fifo_if);
+  sync_fifo_Test #(DATA_WIDTH, FIFO_DEPTH, FWFT, TEST_NUMBER, DEBUG) t1 (fifo_if);
 
-  // DUT instantiation
-  sync_FIFO_buffer #(DATA_WIDTH, FIFO_DEPTH, FWFT) dut (fifo_if.DEVICE);
+//-------------------//
+// DUT INSTANTIATION //
+//-------------------//
+
+  sync_FIFO_buffer #(FIFO_DEPTH, FWFT) dut (fifo_if);
 
 endmodule
