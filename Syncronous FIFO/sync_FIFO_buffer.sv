@@ -34,15 +34,18 @@
 //               The operation are: READ and WRITE, it's possible to simultaneusly
 //               read and write. The "read_i" signal mustn't be asserted when the signal
 //               "empty_o" is true and the "write_i" signal mustn't be asserted when the
-//               signal "full_o" is true.
+//               signal "full_o" is true. Note that empty/full signal are asserted 
+//               immediatly as the control signal arrives, not in the next clock cycle!
 // ------------------------------------------------------------------------------------
-// KEYWORDS : 
+// KEYWORDS : FWFT_configuration, standard_configuration, status_register, 
+//            next_state_logic
 // ------------------------------------------------------------------------------------
 // DEPENDENCIES: sync_fifo_interface.sv 
 // ------------------------------------------------------------------------------------
 // PARAMETERS
-// PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT 
-// DATA_WIDTH :   /   : I/O number of bits          : 32
+//
+// PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT VALUE
+// ------------------------------------------------------------------------------------
 // FIFO_DEPTH :   /   : Total word stored           : 32
 // FWFT       : [1:0] : Use FWFT config or standard : 1
 // ------------------------------------------------------------------------------------
@@ -50,34 +53,20 @@
 `include "sync_fifo_interface.sv"
 
 module sync_FIFO_buffer #(
-
-  // Number of bits in a word
-  parameter DATA_WIDTH = 32,
-
   // Total word stored in memory
-  parameter FIFO_DEPTH = 32,
+  parameter int FIFO_DEPTH = 32,
 
   // Use FWFT configuration or standard.
   // In FWFT (First Word Fall Through) the head of
   // the FIFO is available in the read port as soon
   // as the "read_i" signal is asserted 
-  parameter FWFT = 1
+  parameter int FWFT = 1
 ) 
-( 
-  input  logic [DATA_WIDTH - 1:0] wr_data_i,
-  input  logic                    read_i,
-  input  logic                    write_i,
-  input  logic                    rst_n_i,
-  input  logic                    clk_i,
-
-  output logic [DATA_WIDTH - 1:0] rd_data_o,
-  output logic                    full_o,
-  output logic                    empty_o
-);
-
-////////////////
+( sync_fifo_interface intf ); 
+  
+//------------//
 // PARAMETERS //
-////////////////
+//------------//
 
   // Current and next 
   localparam CRT = 0;
@@ -91,9 +80,9 @@ module sync_FIFO_buffer #(
   localparam logic [1:0] WRITE = 2'b10;
   localparam logic [1:0] BOTH  = 2'b11;
 
-//////////////////
+//--------------//
 // MEMORY LOGIC //
-//////////////////
+//--------------//
 
   // Write and read address, they are driven by the controller pointers
   // Assignment in line 161/162
@@ -106,47 +95,46 @@ module sync_FIFO_buffer #(
   logic write_en, read_en;
 
   // Memory block
-  logic [DATA_WIDTH - 1:0] FIFO_memory [FIFO_DEPTH - 1:0];
+  logic [intf.DATA_WIDTH - 1:0] FIFO_memory [FIFO_DEPTH - 1:0];
 
   // The syncronous fifo write a word on positive edge of the clock, the 
   // read depends on the FWFT parameters.
   generate
 
-    if (FWFT == 1) begin : FWFT_CONFIGURATION
-      // The read is asyncronous
-      always_ff @(posedge clk_i) 
-        begin 
-          if (write_en) begin 
-            // Write a word in memory
-            FIFO_memory[wr_addr] <= wr_data_i; 
-          end
+    if (FWFT == 1) begin : FWFT_configuration
+      always_ff @(posedge intf.clk_i) begin 
+        if (write_en) begin 
+          // Write a word in memory
+          FIFO_memory[wr_addr] <= intf.wr_data_i; 
         end
+      end
 
-      assign rd_data_o = FIFO_memory[rd_addr];
-    end : FWFT_CONFIGURATION
-    else begin : STANDARD_CONFIGURATION
+      // The read is asyncronous
+      assign intf.rd_data_o = FIFO_memory[rd_addr];
+    end : FWFT_configuration
+
+    else begin : standard_configuration
       // The read is syncronous
-      always_ff @(posedge clk_i) 
-        begin 
-          if (write_en & read_en) begin 
-            // Both write and read
-            FIFO_memory[wr_addr] <= wr_data_i; 
-            rd_data_o <= FIFO_memory[rd_addr];
-          end else if (read_en) begin 
-            // Read a word at the positive edge of clock 
-            rd_data_o <= FIFO_memory[rd_addr];
-          end else if (write_en) begin 
-            // Write a word in memory
-            FIFO_memory[wr_addr] <= wr_data_i; 
-          end
+      always_ff @(posedge intf.clk_i) begin 
+        if (write_en & read_en) begin 
+          // Both write and read
+          FIFO_memory[wr_addr] <= intf.wr_data_i; 
+          intf.rd_data_o <= FIFO_memory[rd_addr];
+        end else if (read_en) begin 
+          // Read a word at the positive edge of clock 
+          intf.rd_data_o <= FIFO_memory[rd_addr];
+        end else if (write_en) begin 
+          // Write a word in memory
+          FIFO_memory[wr_addr] <= intf.wr_data_i; 
         end
-    end : STANDARD_CONFIGURATION
+      end
+    end : standard_configuration
 
   endgenerate
 
-//////////////////////
+//------------------//
 // CONTROLLER LOGIC //
-//////////////////////
+//------------------//
 
   // Pointers declaration
   logic [NXT:CRT][ADDR_BITS - 1:0] write_ptr, read_ptr;
@@ -154,94 +142,77 @@ module sync_FIFO_buffer #(
   logic [ADDR_BITS - 1:0] write_ptr_inc, read_ptr_inc;
 
   // Enable the write only when the fifo is not full
-  assign write_en = write_i & !full[CRT];
+  assign write_en = intf.write_i & !full[CRT];
   // Enable the read only when the fifo is not empty
-  assign read_en = read_i & !empty[CRT];
+  assign read_en = intf.read_i & !empty[CRT];
 
   assign wr_addr = write_ptr[CRT];
   assign rd_addr = read_ptr[CRT];
 
-      always_ff @(posedge clk_i) 
-        begin : STATUS_REGISTER
-          if (!rst_n_i) begin 
-            write_ptr[CRT] <= 'b0;
-            read_ptr[CRT] <= 'b0;
-            full[CRT] <= 1'b0;
-            empty[CRT] <= 1'b1;
-          end else begin 
-            write_ptr[CRT] <= write_ptr[NXT];
-            read_ptr[CRT] <= read_ptr[NXT];
-            full[CRT] <= full[NXT];
-            empty[CRT] <= empty[NXT];
-          end
-        end : STATUS_REGISTER
+      always_ff @(posedge intf.clk_i) begin : status_register
+        if (!intf.rst_n_i) begin 
+          write_ptr[CRT] <= 'b0;
+          read_ptr[CRT] <= 'b0;
+          full[CRT] <= 1'b0;
+          empty[CRT] <= 1'b1;
+        end else begin 
+          write_ptr[CRT] <= write_ptr[NXT];
+          read_ptr[CRT] <= read_ptr[NXT];
+          full[CRT] <= full[NXT];
+          empty[CRT] <= empty[NXT];
+        end
+      end : status_register
 
   assign write_ptr_inc = write_ptr[CRT] + 1;
   assign read_ptr_inc = read_ptr[CRT] + 1;
 
-      always_comb 
-        begin : NEXT_STATE_LOGIC
-          case ({write_i, read_i})
-            READ: begin 
-                    if (!empty[CRT]) begin 
-                      // Increment the read pointer
-                      read_ptr[NXT] = read_ptr_inc;
-
-                      // If there's only a read the fifo won't never be full
-                      full[NXT] = 1'b0;
-
-                      // Since this fifo is a circular queue, when we read and
-                      // the two pointers are equals it means that the fifo is empty
-                      empty[NXT] = (write_ptr[CRT] == read_ptr_inc);
-                      write_ptr[NXT] = write_ptr[CRT];
-                    end else begin 
-                      // Keep the preceedings values
-                      write_ptr[NXT] = write_ptr[CRT];
-                      read_ptr[NXT] = read_ptr[CRT];
-                      empty[NXT] = empty[CRT];
-                      full[NXT] = full[CRT];
-                    end
-                  end
-
-            WRITE:  begin 
-                      if (!full[CRT]) begin 
-                        // Increment the write pointer
-                        write_ptr[NXT] = write_ptr_inc;
-                        // If there's only a write the fifo won't never be empty
-                        empty[NXT] = 1'b0;
-                        // Since this fifo is a circular queue, when we write and
-                        // the two pointers are equals it means that the fifo is full
-                        full[NXT] = (read_ptr[CRT] == write_ptr_inc);
-                        read_ptr[NXT] = read_ptr[CRT];
-                      end else begin 
-                        // Keep the preceedings values
-                        write_ptr[NXT] = write_ptr[CRT];
-                        read_ptr[NXT] = read_ptr[CRT];
-                        empty[NXT] = empty[CRT];
-                        full[NXT] = full[CRT];
-                      end
-                    end
-
-            BOTH: begin 
-                    // Increment the write and read pointer
-                    write_ptr[NXT] = write_ptr_inc;
+      always_comb begin : next_state_logic
+        // Keep the preceedings values (default values)
+        write_ptr[NXT] = write_ptr[CRT];
+        read_ptr[NXT] = read_ptr[CRT];
+        empty[NXT] = empty[CRT];
+        full[NXT] = full[CRT];
+          
+        case ({intf.write_i, intf.read_i})
+          READ: begin 
+                  if (!empty[CRT]) begin 
+                    // Increment the read pointer
                     read_ptr[NXT] = read_ptr_inc;
-                    // Keep the preceedings values
-                    empty[NXT] = empty[CRT];
-                    full[NXT] = full[CRT];
+
+                    // If there's only a read the fifo won't never be full
+                    full[NXT] = 1'b0;
+
+                    // Since this fifo is a circular queue, when we read and
+                    // the two pointers are equals it means that the fifo is empty
+                    empty[NXT] = (write_ptr[CRT] == read_ptr_inc);
+                    write_ptr[NXT] = write_ptr[CRT];
+                  end 
+                end
+
+          WRITE:  begin 
+                    if (!full[CRT]) begin 
+                      // Increment the write pointer
+                      write_ptr[NXT] = write_ptr_inc;
+                        
+                      // If there's only a write the fifo won't never be empty
+                      empty[NXT] = 1'b0;
+                      
+                      // Since this fifo is a circular queue, when we write and
+                      // the two pointers are equals it means that the fifo is full
+                      full[NXT] = (read_ptr[CRT] == write_ptr_inc);
+                      read_ptr[NXT] = read_ptr[CRT];
+                    end 
                   end
 
-            default:  begin 
-                        // Keep the preceedings values
-                        write_ptr[NXT] = write_ptr[CRT];
-                        read_ptr[NXT] = read_ptr[CRT];
-                        empty[NXT] = empty[CRT];
-                        full[NXT] = full[CRT];
-                      end
-          endcase
-        end : NEXT_STATE_LOGIC
+          BOTH: begin 
+                  // Increment the write and read pointer
+                  write_ptr[NXT] = write_ptr_inc;
+                  read_ptr[NXT] = read_ptr_inc;
+                end
+        endcase
+      end : next_state_logic
   
-  assign full_o = full[CRT];
-  assign empty_o = empty[CRT];
+  assign intf.full_o = full[CRT];
+  assign intf.empty_o = empty[CRT];
 
 endmodule
