@@ -28,16 +28,18 @@
 // ------------------------------------------------------------------------------------
 // RELEASE HISTORY
 // VERSION : 1.0 
-// DESCRIPTION : The generator generates random transaction everytime the driver has 
-//               done driving the previous transaction
+// DESCRIPTION : The generator generates random transactions with proper constraint
 // ------------------------------------------------------------------------------------
 // KEYWORDS : new, main
 // ------------------------------------------------------------------------------------
 // DEPENDENCIES: sync_fifo_Transaction.sv
 // ------------------------------------------------------------------------------------
 // PARAMETERS
-// PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT
-// DATA_WIDTH :   /   : I/O number of bits          : 32
+//
+// PARAM NAME : RANGE : DESCRIPTION           : DEFAULT VALUES
+// ------------------------------------------------------------------------------------
+// DATA_WIDTH :   /   : I/O number of bits    : 32
+// DEBUG      : [1:0] : Enable debug messages : 1
 // ------------------------------------------------------------------------------------
 
 `ifndef GENERATOR_SV
@@ -45,10 +47,10 @@
 
 `include "sync_fifo_Transaction.sv"
 
-class sync_fifo_Generator #(int DATA_WIDTH = 32);
+class sync_fifo_Generator #(int DATA_WIDTH = 32, int DEBUG = 1);
 
   // Transaction
-  rand sync_fifo_Trx #(DATA_WIDTH) pkt;
+  rand sync_fifo_Trx #(DATA_WIDTH) pkt, mon_pkt;
 
   // Pass the random transaction to the driver
   mailbox gen2drv_mbx;
@@ -59,50 +61,56 @@ class sync_fifo_Generator #(int DATA_WIDTH = 32);
 
   // Number of transaction generated 
   int totalTestGenerated;
-  int countTrx = 0;
 
-  // Driver has finished his task
-  event drvDone_ev;
-
-/////////////////
+//-------------//
 // CONSTRUCTOR //
-/////////////////
+//-------------//
 
-  function new(input mailbox gen2drv_mbx, input event drvDone_ev, input mailbox mon2gen_mbx);
+  function new(input mailbox gen2drv_mbx, input mailbox mon2gen_mbx, input int totalTestGenerated);
     if (gen2drv_mbx == null) begin 
       $display("[Generator] Error: mailbox generator -> driver not connected!");
       $finish;
-    end else  begin
+    end else begin
       this.gen2drv_mbx = gen2drv_mbx;
-      this.drvDone_ev = drvDone_ev;
       this.mon2gen_mbx = mon2gen_mbx;
+      this.totalTestGenerated = totalTestGenerated;
     end
   endfunction : new
 
-////////////
+//--------//
 //  MAIN  //
-////////////
+//--------//
 
   task main();
-    $display("[Generator] [%0tns] Starting...", $time);
-    pkt = new();
+    $display("[Generator] [%0dns] Starting...", $time);
+    mon_pkt = new();
 
-    repeat(totalTestGenerated) begin 
-      // Initialize transaction
-      if (!pkt.randomize())
-        $display("[Generator] Packet failed to randomize!");
-      else
-        $display("[Generator] [%0tns] Generated a new transaction: %0d", $time, ++countTrx);
+    repeat(totalTestGenerated - 1) begin 
+      // Create a new transaction every cycle
+      pkt = new(1);
+      pkt.copy(mon_pkt);
       
-      // Send the packet to the driver then wait the driver
+      // Initialize transaction
+      assert(pkt.randomize()) begin
+        $display("[Generator] [%0dns] Generated a new transaction. Id: %0d", $time, pkt.trx_id);
+
+        if (DEBUG) begin
+          pkt.toString("Generator");
+        end
+      end else begin
+        $fatal("[Generator] Packet failed to randomize!");
+      end
+      
+      // Send the packet to the driver 
       gen2drv_mbx.put(pkt);
-      @(drvDone_ev);
+      #10ns;
 
       // Receive the outputs of the previous transaction from the monitor
-      mon2gen_mbx.get(pkt);
+      // to generate new proper transaction in case of full/empty signal asserted
+      mon2gen_mbx.get(mon_pkt); 
     end
 
-    $display("[Generator] [%0tns] Finish! Generated %0d transaction", $time, countTrx);
+    $display("[Generator] [%0dns] Finish! Generated %0d transaction", $time, pkt.trx_count);
   endtask : main
 
 endclass : sync_fifo_Generator
