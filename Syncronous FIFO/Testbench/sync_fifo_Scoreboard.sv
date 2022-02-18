@@ -31,14 +31,18 @@
 // DESCRIPTION : The scoreboard is responsible for data checking. It compares the data
 //               recived from the monitor with a golden model.
 // ------------------------------------------------------------------------------------
-// KEYWORDS : new, fifoPop, fifoPush, main
+// KEYWORDS : new, tasks, main
 // ------------------------------------------------------------------------------------
 // DEPENDENCIES: sync_fifo_Transaction.sv
 // ------------------------------------------------------------------------------------
 // PARAMETERS
+//
 // PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT
+// ------------------------------------------------------------------------------------
 // DATA_WIDTH :   /   : I/O number of bits          : 32
 // FIFO_DEPTH :   /   : Total word stored           : 32
+// FWFT       : [1:0] : Use FWFT config or standard : 1
+// DEBUG      : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
 `ifndef SCOREBOARD_SV
@@ -46,97 +50,131 @@
 
 `include "sync_fifo_Transaction.sv"
 
-class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32);
+class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT = 1, int DEBUG = 1);
 
   mailbox mon2scb_mbx;
-  int errorCount = 0;
+  mailbox drv2scb_mbx;
+
+  int total_errors = 0;
+  int error = 0;
+  int error_time[$];
 
   // Fifo reference
-  bit [DATA_WIDTH - 1:0] fifo_ref [$:FIFO_DEPTH];
+  bit [DATA_WIDTH - 1:0] fifo_ref[$];
   bit [DATA_WIDTH - 1:0] data_read;
 
-  sync_fifo_Trx #(DATA_WIDTH) pkt;
+  sync_fifo_Trx #(DATA_WIDTH) pkt, drv_pkt_i;
 
-/////////////////
+//-------------//
 // CONSTRUCTOR //
-/////////////////
+//-------------//
 
-  function new(input mailbox mon2scb_mbx);
+  function new(input mailbox mon2scb_mbx, input mailbox drv2scb_mbx);
     if (mon2scb_mbx == null) begin 
       $display("[Scoreboard] Error: mailbox scoreboard -> monitor not connected!");
       $finish;
     end else begin 
       this.mon2scb_mbx = mon2scb_mbx;
+      this.drv2scb_mbx = drv2scb_mbx;
 
-      // Initialize the queue
-      for (int i = 0; i < FIFO_DEPTH; i++) begin 
-        fifo_ref.insert(i, 0);
-      end
+      pkt = new(0);
+      drv_pkt_i = new(0);
     end
   endfunction : new
 
-////////////
+//-------//
+// TASKS //
+//-------//
+
+  function void emptyCheck();
+    assert(fifo_ref.size() == 0) begin  
+      $display("[Scoreboard] [%0dns] PASS! FIFO is empty", $time);
+    end else begin 
+      $display("[Scoreboard] [%0dns] FAIL! Reference size: %0d, DUT: %0s", $time, fifo_ref.size(), pkt.empty_o ? "EMPTY" : "NOT EMPTY");
+      ++error;
+    end
+  endfunction : emptyCheck
+  
+  function void fullCheck();
+    assert(fifo_ref.size() >= FIFO_DEPTH) begin
+      $display("[Scoreboard] [%0dns] PASS! FIFO is full", $time);
+    end else begin 
+      $display("[Scoreboard] [%0dns] FAIL! Reference size: %0d, DUT: %0s", $time, fifo_ref.size(), pkt.full_o ? "FULL" : "NOT FULL");
+      ++error;
+    end
+  endfunction : fullCheck
+
+  function void dataReadCheck();
+    assert(data_read == pkt.rd_data_o)  
+      $display("[Scoreboard] [%0dns] PASS! Read match", $time);
+    else begin 
+      $display("[Scoreboard] [%0dns] FAIL! Read mismatch", $time);
+      $display("[Scoreboard] Expected: 0x%h", data_read);
+      $display("[Scoreboard] DUT: 0x%h", pkt.rd_data_o);
+      ++error;
+    end
+  endfunction : dataReadCheck
+
+//--------//
 //  MAIN  //
-////////////
+//--------//
 
   task main();
-    $display("[Scoreboard] [%0tns] Starting...", $time);
-    pkt = new();
+    $display("[Scoreboard] [%0dns] Starting...", $time);
       
     forever begin
-      // Get the complete transaction from the monitor 
       mon2scb_mbx.get(pkt);
 
-      // Check the empty/full logic before writing/reading the fifo
-      // since it would compromise the size of the fifo reference
-      if (pkt.empty_o) begin 
-        assert(fifo_ref.size() == 0)  
-          $display("[Scoreboard] [%0tns] PASS! FIFO is empty", $time);
-        else begin 
-          $display("[Scoreboard] [%0tns] FAIL! Reference size: %0d, DUT: %0s", $time, fifo_ref.size(), pkt.empty_o ? "EMPTY" : "NOT EMPTY");
-          errorCount++;
-        end
-      end else if (pkt.full_o) begin 
-        assert(fifo_ref.size() == FIFO_DEPTH)  
-          $display("[Scoreboard] [%0tns] PASS! FIFO is full", $time);
-        else begin 
-          $display("[Scoreboard] [%0tns] FAIL! Reference size: %0d, DUT: %0s", $time, fifo_ref.size(), pkt.full_o ? "FULL" : "NOT FULL");
-          errorCount++;
-        end
+      if (DEBUG) begin
+        $display("[Scoreboard] [%0dns] Monitor packet:", $time);
+        pkt.toString("Scoreboard");
       end
 
-      if (pkt.write_i & pkt.read_i) begin  
-        $display("[Scoreboard] [%0tns] Writing and reading...", $time);
-        fifo_ref.push_front(pkt.wr_data_i);
-        data_read = fifo_ref.pop_back();
+      // Empty logic check
+      if (pkt.empty_o) begin 
+        emptyCheck();
+      end else if (pkt.full_o) begin 
+        fullCheck();
+      end
 
-        assert(data_read == pkt.rd_data_o)  
-          $display("[Scoreboard] [%0tns] PASS! Read match", $time);
-        else begin 
-          $display("[Scoreboard] [%0tns] FAIL! Read mismatch", $time);
-          $display("[Scoreboard] Expected: %0h", data_read);
-          $display("[Scoreboard] DUT: %0h", pkt.rd_data_o);
-          errorCount++;
+      if (pkt.write_i && pkt.read_i) begin 
+        $display("[Scoreboard] [%0dns] Writing and reading...", $time); 
+        fifo_ref.push_front(pkt.wr_data_i);
+
+        // Read logic check
+        if (FWFT) begin
+          data_read = fifo_ref.pop_back();
+          dataReadCheck();
+        end else begin 
+          // Don't immediatly update data read since it contains the last value (data comes after 1 clock cycle)
+          dataReadCheck();
+          data_read = fifo_ref.pop_back();
         end
       end else if (pkt.write_i) begin 
-        $display("[Scoreboard] [%0tns] Writing...", $time);
+        $display("[Scoreboard] [%0dns] Writing...", $time);
         fifo_ref.push_front(pkt.wr_data_i);
       end else if (pkt.read_i) begin 
-        $display("[Scoreboard] [%0tns] Reading...", $time);
-        data_read = fifo_ref.pop_back();
-
-        assert(data_read == pkt.rd_data_o)  
-          $display("[Scoreboard] [%0tns] PASS! Read match", $time);
-        else begin 
-          $display("[Scoreboard] [%0tns] FAIL! Read mismatch", $time);
-          $display("[Scoreboard] Expected: %0h", data_read);
-          $display("[Scoreboard] DUT: %0h", pkt.rd_data_o);
-          errorCount++;
+        $display("[Scoreboard] [%0dns] Reading...", $time);
+          
+        // Read logic check
+        if (FWFT) begin
+          data_read = fifo_ref.pop_back();
+          dataReadCheck();
+        end else begin 
+          // Don't update data read since it contains the last value (data comes after 1 clock cycle)
+          dataReadCheck();
+          data_read = fifo_ref.pop_back();
         end
       end else begin 
-        $display("[Scoreboard] [%0tns] Idle...", $time);
+        $display("[Scoreboard] [%0dns] Idle...", $time);
       end
 
+      if (error != 0) begin 
+        ++total_errors;
+        error_time.push_front($time());
+      end
+
+      error = 0;
       $display("\n");
     end
   endtask : main 
