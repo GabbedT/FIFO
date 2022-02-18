@@ -45,6 +45,7 @@
   `define TRANSACTION_SV
   
 class sync_fifo_Trx #(int DATA_WIDTH = 32);
+
   // Inputs
   rand bit [DATA_WIDTH - 1:0] wr_data_i;
   rand bit                    read_i;
@@ -54,6 +55,10 @@ class sync_fifo_Trx #(int DATA_WIDTH = 32);
   bit      [DATA_WIDTH - 1:0] rd_data_o;
   bit                         full_o;
   bit                         empty_o;
+
+//------------//
+// CONSTRAINT //
+//------------//
 
   // Don't read if fifo is empty 
   constraint read_c { 
@@ -65,11 +70,19 @@ class sync_fifo_Trx #(int DATA_WIDTH = 32);
     (full_o) -> write_i == 1'b0; 
   };
 
+//------//
+// DATA //
+//------//
+
   // Total number of transactions
   static int trx_count = 1;
 
   // Id of transaction
   int trx_id;
+
+//-------------//
+// CONSTRUCTOR //
+//-------------//
 
   function new(input bit increment = 0);
     if (increment) begin
@@ -87,6 +100,10 @@ class sync_fifo_Trx #(int DATA_WIDTH = 32);
     full_o = 0;
     empty_o = 1;
   endfunction : new
+
+//-----------//
+// FUNCTIONS //
+//-----------//
 
   function void printInputs(string tag);
     $display("[%0s] [%0dns] Write data = 0x%h Read = %0b Write = %0b", tag, $time, wr_data_i, read_i, write_i);
