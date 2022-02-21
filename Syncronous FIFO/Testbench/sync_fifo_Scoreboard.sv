@@ -45,8 +45,8 @@
 // DEBUG      : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
-`ifndef SCOREBOARD_SV
-  `define SCOREBOARD_SV
+`ifndef FIFO_SCOREBOARD_SV
+  `define FIFO_SCOREBOARD_SV
 
 `include "sync_fifo_Transaction.sv"
 
