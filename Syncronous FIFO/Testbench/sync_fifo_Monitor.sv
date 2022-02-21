@@ -44,8 +44,8 @@
 // DEBUG      : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
-`ifndef MONITOR_SV
-  `define MONITOR_SV
+`ifndef FIFO_MONITOR_SV
+  `define FIFO_MONITOR_SV
 
 `include "sync_fifo_Transaction.sv"
 `include "sync_fifo_interface.sv" 
