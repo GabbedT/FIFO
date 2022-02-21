@@ -41,8 +41,8 @@
 // DATA_WIDTH :   /   : I/O number of bits          : 32
 // ------------------------------------------------------------------------------------
 
-`ifndef TRANSACTION_SV
-  `define TRANSACTION_SV
+`ifndef FIFO_TRANSACTION_SV
+  `define FIFO_TRANSACTION_SV
   
 class sync_fifo_Trx #(int DATA_WIDTH = 32);
 
