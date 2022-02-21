@@ -45,8 +45,8 @@
 // DEBUG       : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
-`ifndef TEST_SV  
-  `define TEST_SV 
+`ifndef FIFO_TEST_SV  
+  `define FIFO_TEST_SV 
 
   `include "sync_fifo_Environment.sv"
   `include "sync_fifo_interface.sv"
