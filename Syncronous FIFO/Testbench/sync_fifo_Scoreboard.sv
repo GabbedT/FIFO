@@ -45,15 +45,14 @@
 // DEBUG      : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
-`ifndef FIFO_SCOREBOARD_SV
-  `define FIFO_SCOREBOARD_SV
+`ifndef SCOREBOARD_SV
+  `define SCOREBOARD_SV
 
 `include "sync_fifo_Transaction.sv"
 
 class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT = 1, int DEBUG = 1);
 
   mailbox mon2scb_mbx;
-  mailbox drv2scb_mbx;
 
   int total_errors = 0;
   int error = 0;
@@ -69,13 +68,12 @@ class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT 
 // CONSTRUCTOR //
 //-------------//
 
-  function new(input mailbox mon2scb_mbx, input mailbox drv2scb_mbx);
+  function new(input mailbox mon2scb_mbx);
     if (mon2scb_mbx == null) begin 
       $display("[Scoreboard] Error: mailbox scoreboard -> monitor not connected!");
       $finish;
     end else begin 
       this.mon2scb_mbx = mon2scb_mbx;
-      this.drv2scb_mbx = drv2scb_mbx;
 
       pkt = new(0);
       drv_pkt_i = new(0);
