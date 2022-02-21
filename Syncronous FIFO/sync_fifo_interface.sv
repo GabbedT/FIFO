@@ -41,8 +41,8 @@
 // DATA_WIDTH :   /   : I/O number of bits          : 32
 // ------------------------------------------------------------------------------------
 
-`ifndef INTERFACE_SV
-  `define INTERFACE_SV
+`ifndef FIFO_INTERFACE_SV
+  `define FIFO_INTERFACE_SV
 
 `timescale 1ns/1ps
 
