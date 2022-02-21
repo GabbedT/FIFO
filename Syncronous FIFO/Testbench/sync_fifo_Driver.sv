@@ -43,8 +43,8 @@
 // DEBUG      : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
-`ifndef DRIVER_SV
-  `define DRIVER_SV
+`ifndef FIFO_DRIVER_SV
+  `define FIFO_DRIVER_SV
 
 `include "sync_fifo_Transaction.sv"
 
