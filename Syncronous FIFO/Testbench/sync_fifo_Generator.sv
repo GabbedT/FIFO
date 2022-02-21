@@ -42,8 +42,8 @@
 // DEBUG      : [1:0] : Enable debug messages : 1
 // ------------------------------------------------------------------------------------
 
-`ifndef GENERATOR_SV
-  `define GENERATOR_SV
+`ifndef FIFO_GENERATOR_SV
+  `define FIFO_GENERATOR_SV
 
 `include "sync_fifo_Transaction.sv"
 
