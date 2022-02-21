@@ -12,6 +12,7 @@ It's implemented as a [circular queue](https://www.geeksforgeeks.org/circular-qu
   * Control path
 
 The former is the storage of the data, the latter control the various read and write pointers to obtain a FIFO like memory.
+The main module can be instantiated in a design with the provided interface: `sync_fifo_interface.sv` to make the instantiaton easier and less verbose (thus less error prone).
 
 ### I/O Ports
 
@@ -26,6 +27,18 @@ The former is the storage of the data, the latter control the various read and w
 | Output | rd_data_o | Data read port       | 
 | Output | full_o    | Fifo full signal     | 
 | Output | empty_o   | Fifo empty signal    | 
+
+### Parameters
+
+| Parameter Name | Range | Default Value |
+| -------------- | ----- | ------------- |
+| FIFO_DEPTH     |   \   | 32            |
+| FWFT           | [1:0] | 1             |
+| DATA_WIDTH     |   \   | 32            |
+
+ * `FIFO_DEPTH` defines the number of words stored.
+ * `FWFT` defines the FIFO's configuration (see below).
+ * `DATA_WIDTH` define the width of the words stored.
 
 ### First Word Fall Through configuration 
 
