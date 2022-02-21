@@ -47,8 +47,8 @@
 // DEBUG       : [1:0] : Enable debug messages       : 1
 // ------------------------------------------------------------------------------------
 
-`ifndef ENVIRONMENT_SV   
-  `define ENVIRONMENT_SV 
+`ifndef FIFO_ENVIRONMENT_SV   
+  `define FIFO_ENVIRONMENT_SV 
 
 `include "sync_fifo_Transaction.sv"
 `include "sync_fifo_Generator.sv"
