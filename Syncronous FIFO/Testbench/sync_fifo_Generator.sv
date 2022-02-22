@@ -49,7 +49,6 @@
 
 class sync_fifo_Generator #(int DATA_WIDTH = 32, int DEBUG = 1);
 
-  // Transaction
   rand sync_fifo_Trx #(DATA_WIDTH) pkt, mon_pkt;
 
   // Pass the random transaction to the driver
@@ -69,6 +68,9 @@ class sync_fifo_Generator #(int DATA_WIDTH = 32, int DEBUG = 1);
   function new(input mailbox gen2drv_mbx, input mailbox mon2gen_mbx, input int totalTestGenerated);
     if (gen2drv_mbx == null) begin 
       $display("[Generator] Error: mailbox generator -> driver not connected!");
+      $finish;
+    end else if (mon2gen_mbx == null) begin 
+      $display("[Generator] Error: mailbox monitor -> generator not connected!");
       $finish;
     end else begin
       this.gen2drv_mbx = gen2drv_mbx;
