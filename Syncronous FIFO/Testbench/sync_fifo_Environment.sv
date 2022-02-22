@@ -55,6 +55,7 @@
 `include "sync_fifo_Driver.sv"
 `include "sync_fifo_Monitor.sv"
 `include "sync_fifo_Scoreboard.sv"
+`include "sync_fifo_interface.sv"
 
 class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT = 1, int TEST_NUMBER = 500, int DEBUG = 1);
 
@@ -66,7 +67,6 @@ class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT
   mailbox gen2drv_mbx;
   mailbox mon2scb_mbx;
   mailbox mon2gen_mbx;
-  mailbox drv2scb_mbx;
     
   event drvDone_ev;
 
@@ -87,14 +87,13 @@ class sync_fifo_Environment #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT
     gen2drv_mbx = new();
     mon2scb_mbx = new();
     mon2gen_mbx = new();
-    drv2scb_mbx = new();
 
     gen = new(gen2drv_mbx, mon2gen_mbx, TEST_NUMBER);
-    drv = new(fifo_vif, gen2drv_mbx, drvDone_ev, drv2scb_mbx);
+    drv = new(fifo_vif, gen2drv_mbx, drvDone_ev);
     mon = new(fifo_vif, mon2scb_mbx, mon2gen_mbx, drvDone_ev);
-    scb = new(mon2scb_mbx, drv2scb_mbx);
+    scb = new(mon2scb_mbx);
   endfunction : new
-
+  
 //--------//
 //  MAIN  //
 //--------//
