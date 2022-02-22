@@ -66,14 +66,19 @@ class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 1, int DEBUG = 1);
 //-------------//
 
   function new(input virtual sync_fifo_interface fifo_vif, input mailbox mon2scb_mbx, input mailbox mon2gen_mbx, input event drvDone_ev);
-    // Didn't connect
-    if (mon2scb_mbx == null) begin 
+    if (this.DATA_WIDTH != fifo_vif.DATA_WIDTH) begin 
+      $display("[Driver] Error: interfaces parameters mismatch!");
+      $finish;
+    end else if (mon2scb_mbx == null) begin 
       $display("[Monitor] Error: mailbox monitor -> scoreboard not connected!");
       $finish;
-    end else if (this.fifo_vif.DATA_WIDTH != fifo_vif.DATA_WIDTH) begin 
-      $display("[Monitor] Error: interfaces parameters mismatch!");
+    end else if (mon2gen_mbx == null) begin 
+      $display("[Monitor] Error: mailbox monitor -> generator not connected!");
       $finish;
-    end else begin 
+    end else if (drvDone_ev == null) begin 
+      $display("[Driver] Error: driver done event didn't connect");
+      $finish;
+    end else begin
       this.mon2scb_mbx = mon2scb_mbx;
       this.fifo_vif = fifo_vif;
       this.mon2gen_mbx = mon2gen_mbx;
@@ -88,12 +93,12 @@ class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 1, int DEBUG = 1);
 //---------//
 
   function printInputsMon();
-    $display("[Monitor] [%0dns] Sampled inputs!", $time);
+    $display("[Monitor] [%0dns] Interface inputs: ", $time); 
     pkt.printInputs("Monitor");
   endfunction : printInputsMon
 
   function printOutputsMon();
-    $display("[Monitor] [%0dns] Sampled outputs!", $time);
+    $display("[Monitor] [%0dns] Interface outputs: ", $time); 
 
     if (FWFT) begin
       pkt.printOutputs("Monitor");
@@ -118,9 +123,9 @@ class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 1, int DEBUG = 1);
       pkt.write_i = fifo_vif.write_i;
       pkt.read_i = fifo_vif.read_i;
       pkt.wr_data_i = fifo_vif.wr_data_i; 
+      $display("[Monitor] [%0dns] Sampled inputs!", $time);
 
-      if (DEBUG) begin
-        $display("[Monitor] [%0dns] Interface inputs: ", $time);   
+      if (DEBUG) begin  
         printInputsMon();
       end
 
@@ -128,9 +133,9 @@ class sync_fifo_Monitor #(int DATA_WIDTH = 32, int FWFT = 1, int DEBUG = 1);
       pkt.empty_o = fifo_vif.empty_o;
       pkt.full_o = fifo_vif.full_o;
       pkt.rd_data_o = fifo_vif.rd_data_o;
+      $display("[Monitor] [%0dns] Sampled outputs!", $time);
 
-      if (DEBUG) begin
-        $display("[Monitor] [%0dns] Interface outputs: ", $time);   
+      if (DEBUG) begin  
         printOutputsMon();
       end
 
