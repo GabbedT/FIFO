@@ -128,7 +128,7 @@ class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT 
         pkt.toString("Scoreboard");
       end
 
-      // Empty logic check
+      // Empty/full check
       if (pkt.empty_o) begin 
         emptyCheck();
       end else if (pkt.full_o) begin 
@@ -139,7 +139,7 @@ class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT 
         $display("[Scoreboard] [%0dns] Writing and reading...", $time); 
         fifo_ref.push_front(pkt.wr_data_i);
 
-        // Read logic check
+        // Read check
         if (FWFT) begin
           data_read = fifo_ref.pop_back();
           dataReadCheck();
@@ -154,7 +154,7 @@ class sync_fifo_Scoreboard #(int DATA_WIDTH = 32, int FIFO_DEPTH = 32, int FWFT 
       end else if (pkt.read_i) begin 
         $display("[Scoreboard] [%0dns] Reading...", $time);
           
-        // Read logic check
+        // Read check
         if (FWFT) begin
           data_read = fifo_ref.pop_back();
           dataReadCheck();
