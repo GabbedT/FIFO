@@ -85,26 +85,25 @@ module sync_FIFO_buffer #(
 //--------------//
 
   // Write and read address, they are driven by the controller pointers
-  // Assignment in line 161/162
   logic [ADDR_BITS - 1:0] wr_addr, rd_addr;
 
   // Fifo status
   logic [NXT:CRT] full, empty;
 
-  // Assignment in line 157/159
+  // Enable signal for read and write operations 
   logic write_en, read_en;
 
   // Memory block
   logic [intf.DATA_WIDTH - 1:0] FIFO_memory [FIFO_DEPTH - 1:0];
 
-  // The syncronous fifo write a word on positive edge of the clock, the 
+  // The syncronous fifo writes a word on positive edge of the clock,  
   // read depends on the FWFT parameters.
   generate
-
+    
+    // Memory instantiation
     if (FWFT == 1) begin : FWFT_configuration
       always_ff @(posedge intf.clk_i) begin 
         if (write_en) begin 
-          // Write a word in memory
           FIFO_memory[wr_addr] <= intf.wr_data_i; 
         end
       end
@@ -117,14 +116,11 @@ module sync_FIFO_buffer #(
       // The read is syncronous
       always_ff @(posedge intf.clk_i) begin 
         if (write_en & read_en) begin 
-          // Both write and read
           FIFO_memory[wr_addr] <= intf.wr_data_i; 
           intf.rd_data_o <= FIFO_memory[rd_addr];
         end else if (read_en) begin 
-          // Read a word at the positive edge of clock 
           intf.rd_data_o <= FIFO_memory[rd_addr];
-        end else if (write_en) begin 
-          // Write a word in memory
+        end else if (write_en) begin
           FIFO_memory[wr_addr] <= intf.wr_data_i; 
         end
       end
@@ -138,11 +134,13 @@ module sync_FIFO_buffer #(
 
   // Pointers declaration
   logic [NXT:CRT][ADDR_BITS - 1:0] write_ptr, read_ptr;
+
   // Incremented pointer
   logic [ADDR_BITS - 1:0] write_ptr_inc, read_ptr_inc;
 
   // Enable the write only when the fifo is not full
   assign write_en = intf.write_i & !full[CRT];
+
   // Enable the read only when the fifo is not empty
   assign read_en = intf.read_i & !empty[CRT];
 
@@ -215,4 +213,4 @@ module sync_FIFO_buffer #(
   assign intf.full_o = full[CRT];
   assign intf.empty_o = empty[CRT];
 
-endmodule
+endmodule : sync_FIFO_buffer
