@@ -59,6 +59,6 @@ interface sync_fifo_interface #(parameter int DATA_WIDTH = 32) (input logic clk_
   logic                    full_o;
   logic                    empty_o;
 
-endinterface 
+endinterface : sync_fifo_interface
 
 `endif
