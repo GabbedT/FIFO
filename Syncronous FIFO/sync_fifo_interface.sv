@@ -42,22 +42,27 @@
 // ------------------------------------------------------------------------------------
 
 `ifndef FIFO_INTERFACE_SV
-  `define FIFO_INTERFACE_SV
+    `define FIFO_INTERFACE_SV
 
 `timescale 1ns/1ps
 
 interface sync_fifo_interface #(parameter int DATA_WIDTH = 32) (input logic clk_i);
 
-  // Input
-  logic [DATA_WIDTH - 1:0] wr_data_i;
-  logic                    read_i;
-  logic                    write_i;
-  logic                    rst_n_i;
+    /* Inputs */
+    logic [DATA_WIDTH - 1:0] wr_data_i;
+    logic                    read_i;
+    logic                    write_i;
+    logic                    rst_n_i;
 
-  // Output
-  logic [DATA_WIDTH - 1:0] rd_data_o;
-  logic                    full_o;
-  logic                    empty_o;
+    /* Output */
+    logic [DATA_WIDTH - 1:0] rd_data_o;
+    logic                    full_o;
+    logic                    empty_o;
+
+    modport pinout (
+        input  wr_data_i, read_i, write_i, rst_n_i,
+        output rd_data_o, full_o, empty_o
+    ); 
 
 endinterface : sync_fifo_interface
 
