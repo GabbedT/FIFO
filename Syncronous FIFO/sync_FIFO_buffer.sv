@@ -104,7 +104,7 @@ module sync_FIFO_buffer #(
     
         /* Memory instantiation */
         if (FWFT == 1) begin : FWFT_configuration
-            always_ff @(posedge clk_i) begin 
+            always_ff @(posedge clk_i or negedge rst_n_i) begin 
                 if (write_en) begin 
                     FIFO_memory[wr_addr] <= intf.wr_data_i; 
                 end
@@ -116,7 +116,7 @@ module sync_FIFO_buffer #(
 
     else begin : standard_configuration
         /* The read is syncronous */
-        always_ff @(posedge clk_i) begin 
+        always_ff @(posedge clk_i or negedge rst_n_i) begin 
             if (write_en & read_en) begin 
                 FIFO_memory[wr_addr] <= intf.wr_data_i; 
                 intf.rd_data_o <= FIFO_memory[rd_addr];
@@ -150,7 +150,7 @@ module sync_FIFO_buffer #(
     assign wr_addr = write_ptr[CRT];
     assign rd_addr = read_ptr[CRT];
 
-        always_ff @(posedge clk_i) begin : status_register
+        always_ff @(posedge clk_i or negedge rst_n_i) begin : status_register
             if (!intf.rst_n_i) begin 
                 write_ptr[CRT] <= 'b0;
                 read_ptr[CRT] <= 'b0;
