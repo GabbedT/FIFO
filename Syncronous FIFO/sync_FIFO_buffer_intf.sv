@@ -21,7 +21,7 @@
 // SOFTWARE.
 // ------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------
-// FILE NAME : FIFO_buffer_sync.sv
+// FILE NAME : sync_FIFO_buffer_intf.sv
 // DEPARTMENT : 
 // AUTHOR : Gabriele Tripi
 // AUTHOR'S EMAIL : tripi.gabriele2002@gmail.com
@@ -36,6 +36,8 @@
 //               "empty_o" is true and the "write_i" signal mustn't be asserted when the
 //               signal "full_o" is true. Note that empty/full signal are asserted 
 //               immediatly as the control signal arrives, not in the next clock cycle!
+//
+//               This module can be instantiated with the relative interface!
 // ------------------------------------------------------------------------------------
 // KEYWORDS : FWFT_configuration, standard_configuration, status_register, 
 //            next_state_logic
@@ -67,7 +69,7 @@ module sync_FIFO_buffer_intf #(
      * as the "read_i" signal is asserted 
      */
     parameter int FWFT = 1
-) 
+)
 (   input logic clk_i, sync_fifo_interface.pinout intf ); 
   
 //------------//
