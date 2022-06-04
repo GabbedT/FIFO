@@ -21,7 +21,7 @@
 // SOFTWARE.
 // ------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------
-// FILE NAME : FIFO_buffer_sync.sv
+// FILE NAME : sync_FIFO_buffer.sv
 // DEPARTMENT : 
 // AUTHOR : Gabriele Tripi
 // AUTHOR'S EMAIL : tripi.gabriele2002@gmail.com
