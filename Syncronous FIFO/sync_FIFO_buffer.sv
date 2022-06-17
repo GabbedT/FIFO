@@ -34,8 +34,7 @@
 //               The operation are: READ and WRITE, it's possible to simultaneusly
 //               read and write. The "read_i" signal mustn't be asserted when the signal
 //               "empty_o" is true and the "write_i" signal mustn't be asserted when the
-//               signal "full_o" is true. Note that empty/full signal are asserted 
-//               immediatly as the control signal arrives, not in the next clock cycle!
+//               signal "full_o" is true. 
 // ------------------------------------------------------------------------------------
 // KEYWORDS : FWFT_configuration, standard_configuration, status_register, 
 //            next_state_logic
@@ -50,8 +49,6 @@
 
 `ifndef SYNC_FIFO_BUFFER_INCLUDE 
     `define SYNC_FIFO_BUFFER_INCLUDE
-
-`include "sync_FIFO_interface.sv"
 
 module sync_FIFO_buffer #(
 
@@ -83,10 +80,6 @@ module sync_FIFO_buffer #(
 // PARAMETERS //
 //------------//
 
-    /* Current and next */
-    localparam CRT = 0;
-    localparam NXT = 1;
-
     /* Address bits for fifo memory */
     localparam ADDR_BITS = $clog2(FIFO_DEPTH);
 
@@ -95,6 +88,7 @@ module sync_FIFO_buffer #(
     localparam logic [1:0] WRITE = 2'b10;
     localparam logic [1:0] BOTH  = 2'b11;
 
+    
 //--------------//
 // MEMORY LOGIC //
 //--------------//
@@ -143,6 +137,7 @@ module sync_FIFO_buffer #(
 
   endgenerate
 
+    
 //------------------//
 // CONTROLLER LOGIC //
 //------------------//
