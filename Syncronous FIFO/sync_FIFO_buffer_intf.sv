@@ -76,10 +76,6 @@ module sync_FIFO_buffer_intf #(
 // PARAMETERS //
 //------------//
 
-    /* Current and next */
-    localparam CRT = 0;
-    localparam NXT = 1;
-
     /* Address bits for fifo memory */
     localparam ADDR_BITS = $clog2(FIFO_DEPTH);
 
@@ -88,6 +84,7 @@ module sync_FIFO_buffer_intf #(
     localparam logic [1:0] WRITE = 2'b10;
     localparam logic [1:0] BOTH  = 2'b11;
 
+    
 //--------------//
 // MEMORY LOGIC //
 //--------------//
@@ -136,6 +133,7 @@ module sync_FIFO_buffer_intf #(
 
   endgenerate
 
+    
 //------------------//
 // CONTROLLER LOGIC //
 //------------------//
