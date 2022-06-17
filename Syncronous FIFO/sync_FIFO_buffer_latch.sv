@@ -1,3 +1,54 @@
+// MIT License
+//
+// Copyright (c) 2021 Gabriele Tripi
+// 
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// 
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+// ------------------------------------------------------------------------------------
+// ------------------------------------------------------------------------------------
+// FILE NAME : sync_FIFO_buffer.sv
+// DEPARTMENT : 
+// AUTHOR : Gabriele Tripi
+// AUTHOR'S EMAIL : tripi.gabriele2002@gmail.com
+// ------------------------------------------------------------------------------------
+// RELEASE HISTORY
+// VERSION : 1.0 
+// DESCRIPTION : This is a parametrizable syncronous FIFO buffer, it is implemented as 
+//               a circular queue using two pointers for read and write operation. 
+//               It is composed by two parts: the controller and the memory.
+//               The operation are: READ and WRITE, it's possible to simultaneusly
+//               read and write. The "read_i" signal mustn't be asserted when the signal
+//               "empty_o" is true and the "write_i" signal mustn't be asserted when the
+//               signal "full_o" is true. 
+//               When implementing a medium sized FIFO this is the best option because
+//               latches are cheaper in terms of area than flip flops.
+// ------------------------------------------------------------------------------------
+// KEYWORDS : FWFT_configuration, standard_configuration, status_register, 
+//            next_state_logic
+// ------------------------------------------------------------------------------------
+// PARAMETERS
+//
+// PARAM NAME : RANGE : DESCRIPTION                 : DEFAULT VALUE
+// ------------------------------------------------------------------------------------
+// FIFO_DEPTH :   /   : Total word stored           : 32
+// FWFT       : [1:0] : Use FWFT config or standard : 1
+// ------------------------------------------------------------------------------------
+
 `ifndef SYNC_FIFO_BUFFER_LATCH_INCLUDE 
     `define SYNC_FIFO_BUFFER_LATCH_INCLUDE
 
